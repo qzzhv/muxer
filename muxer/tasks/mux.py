@@ -55,6 +55,7 @@ class MuxPack(luigi.Task):
                 overwrite_output=True,
             )
         )
+        output.chmod(0o777)
 
     def run(self):
         streams = self.get_streams()
@@ -108,7 +109,7 @@ class MuxTvFolder(luigi.WrapperTask):
                 self.input_folder
             )
 
-            output_folder.mkdir(mode=777, exist_ok=True)
+            output_folder.mkdir(mode=0o777, exist_ok=True)
 
             yield MuxSeriesFolder(
                 input_folder=series_folder,
