@@ -60,9 +60,7 @@ class MuxPack(luigi.Task):
         streams = self.get_streams()
 
         if (cnt := len(streams["video"])) > 1:
-            raise ValueError(
-                f"Video streams error: except 1 stream, but get {cnt}: {streams['video']}"
-            )
+            logger.warning(f"Video streams error: except 1 stream, but get {cnt}: {streams['video']}")
         elif cnt == 0:
             logger.info("No video stream")
             with self.output().open("w") as outfile:
