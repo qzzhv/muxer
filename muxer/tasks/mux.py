@@ -121,8 +121,8 @@ class MuxTvFolder(luigi.WrapperTask):
 BUILD_KWARGS = dict(
         tasks=[
             MuxTvFolder(
-                input_folder=r"D:\Downloads\input",
-                output_folder=r"D:\Downloads\output",
+                input_folder=Path(INPUT_FOLDER).absolute(),
+                output_folder=Path(OUTPUT_FOLDER).absolute(),
             )
         ],
         workers=1,
