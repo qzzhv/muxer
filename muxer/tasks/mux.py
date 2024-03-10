@@ -1,11 +1,13 @@
-import luigi
-from collections import defaultdict
-import ffmpeg
-from pathlib import Path
-from itertools import chain
-from loguru import logger
-import os
 import hashlib
+import os
+from collections import defaultdict
+from itertools import chain
+from pathlib import Path
+
+import ffmpeg
+import luigi
+from loguru import logger
+
 from ..pool import Pool
 
 DEFAULT_INPUT_FOLDER ='input'

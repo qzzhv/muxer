@@ -16,6 +16,7 @@ pycron = "^3.0.0"
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"
 black = "^24.2.0"
+isort = "^5.13.2"
 
 [build-system]
 requires = ["poetry-core"]

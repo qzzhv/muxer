@@ -1,7 +1,8 @@
-from dataclasses import dataclass
-import luigi
 import datetime as dt
 import time
+from dataclasses import dataclass
+
+import luigi
 import pycron
 from loguru import logger
 
