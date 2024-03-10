@@ -1,12 +1,4 @@
-import schedule
-import time
-
-from .tasks import TASKS
+from .pool import Pool
 
 
-for table, job in TASKS:
-    table.do(job)
-
-while True:
-    schedule.run_pending()
-    time.sleep(1)
+Pool.run()

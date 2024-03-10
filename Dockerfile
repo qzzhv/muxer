@@ -17,4 +17,5 @@ COPY README.md /app
 RUN mkdir input
 RUN mkdir output
 
-CMD ["poetry", "run", "python", "-m", "muxer"]
+CMD poetry run luigid \
+    & poetry run python -m muxer

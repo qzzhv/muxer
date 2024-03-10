@@ -1,12 +1,9 @@
-from . import mux
-import schedule
-from functools import partial
-import luigi
+import importlib
+from pathlib import Path
 
-TASKS = [
-    [schedule.every(5).minutes, mux.BUILD_KWARGS],
-]
+scan_dir = Path(__file__).parent
 
-
-for idx, (table, kwargs) in enumerate(TASKS):
-    TASKS[idx] = [table, partial(luigi.build, **kwargs)]
+for module in scan_dir.glob('*.py'):
+    if module.stem == '__init__':
+        continue
+    importlib.import_module(f'.{module.stem}', 'muxer.tasks')

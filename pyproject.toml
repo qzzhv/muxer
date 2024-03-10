@@ -10,7 +10,7 @@ python = "^3.12"
 ffmpeg-python = "^0.2.0"
 luigi = "^3.5.0"
 loguru = "^0.7.2"
-schedule = "^1.2.1"
+pycron = "^3.0.0"
 
 
 [tool.poetry.group.dev.dependencies]
