@@ -54,7 +54,7 @@ class Pool:
 
                 except luigi.RPCError:
                     raise
-                except BaseException as e:
+                except Exception as e:
                     logger.error(e)
 
             time.sleep(5)
