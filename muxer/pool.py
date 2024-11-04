@@ -20,7 +20,7 @@ class Pool:
     @classmethod
     def add_task(cls, task: luigi.Task, cron: str):
         cls.pool.append(PoolTask(task=task, cron=cron))
-        logger.info(f'added task {task}')
+        logger.info(f"added task {task}")
 
     @classmethod
     def need_to_run(cls, pool_task: PoolTask):
@@ -44,12 +44,12 @@ class Pool:
 
     @classmethod
     def run(cls):
-        logger.info('start pool')
+        logger.info("start pool")
         while True:
             for pool_task in cls.pool:
                 try:
                     if cls.need_to_run(pool_task):
-                        logger.info(f'start {pool_task}')
+                        logger.info(f"start {pool_task}")
                         cls.run_task(pool_task)
 
                 except luigi.RPCError:
