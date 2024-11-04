@@ -1,1 +1,1 @@
-from . import tasks  # Need for adding tasks to pool
+from . import tasks  # noqa: F401
