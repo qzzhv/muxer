@@ -95,7 +95,11 @@ class MuxSeriesFolder(luigi.WrapperTask):
             for p in self.input_folder.glob("**/*")
             if p.is_file() and p.suffix.lower() not in ignored
         ]:
-            packs[path.stem].append(path)
+            pack = [
+                p for p in path.parent.glob(f"**/*") if p.stem.startswith(path.stem)
+            ]
+            packs[path.stem] = pack
+
         return list(packs.values())
 
     def requires(self):
