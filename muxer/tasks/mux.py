@@ -82,7 +82,7 @@ class MuxPack(luigi.Task):
             logger.warning(f'Video streams error: except 1 stream, but get {cnt}: {streams['video']}')
             with self.output().open('w') as outfile:
                 pass
-        return
+            return
 
         video_path = streams['video'][0].node.kwargs['filename']
         output = self.output_folder / video_path.relative_to(self.input_folder)
