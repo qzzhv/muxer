@@ -7,30 +7,45 @@ from pathlib import Path
 import ffmpeg
 import luigi
 from loguru import logger
+from ..utils import add_luigi_task
+import schedule
 
-from ..pool import Pool
 
 DEFAULT_INPUT_FOLDER = 'input'
 DEFAULT_OUTPUT_FOLDER = 'output'
-INPUT_FOLDER = os.environ.get('INPUT_FOLDER', DEFAULT_INPUT_FOLDER)
-OUTPUT_FOLDER = os.environ.get('OUTPUT_FOLDER', DEFAULT_OUTPUT_FOLDER)
-INGORE_EXTENSIONS = ['!qB']
+INPUT_FOLDER = os.environ.get('INPUT_FOLDER')
+OUTPUT_FOLDER = os.environ.get('OUTPUT_FOLDER')
+INGORE_EXTENSIONS = os.environ.get('INGORE_EXTENSIONS', '!qB')
+
+
+if not INPUT_FOLDER:
+    Path(DEFAULT_INPUT_FOLDER).mkdir(parents=True, exist_ok=True)
+    INPUT_FOLDER = DEFAULT_INPUT_FOLDER
+INPUT_FOLDER = Path(INPUT_FOLDER)
+
+if not OUTPUT_FOLDER:
+    Path(DEFAULT_OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
+    OUTPUT_FOLDER = DEFAULT_OUTPUT_FOLDER
+OUTPUT_FOLDER = Path(OUTPUT_FOLDER)
+
+
+INGORE_EXTENSIONS = set(INGORE_EXTENSIONS.split(','))
 
 
 class MuxPack(luigi.Task):
     input_folder = luigi.PathParameter(exists=True)
     output_folder = luigi.PathParameter(exists=True)
+    stem = luigi.Parameter()
     pack = luigi.ListParameter()
 
-    @property
     def output_log_path(self):
         data = '\n'.join(sorted(self.pack))
-        stem = Path(self.pack[0]).stem
-        md5 = hashlib.md5(data.encode()).hexdigest()
-        return self.output_folder / f'{stem[:255-33]}_{md5}'
+        h = hashlib.sha1(data.encode()).hexdigest()
+        suffix = f'.{h[:8]}.mux'
+        return self.output_folder / f'{self.stem[:255-len(suffix)]}{suffix}'
 
     def output(self):
-        return luigi.LocalTarget(self.output_log_path)
+        return luigi.LocalTarget(self.output_log_path())
 
     def get_streams(self):
         input_streams = defaultdict(list)
@@ -50,35 +65,33 @@ class MuxPack(luigi.Task):
         return input_streams
 
     def mux_streams(self, streams, output):
-        (
-            ffmpeg.output(
-                *chain.from_iterable(streams.values()),
-                str(output.absolute()),
-                acodec='copy',
-                vcodec='copy',
-            ).run(
-                overwrite_output=True,
-            )
+        return ffmpeg.output(
+            *chain.from_iterable(streams.values()),
+            str(output.absolute()),
+            acodec='copy',
+            vcodec='copy',
+        ).run(
+            overwrite_output=True,
         )
-        output.chmod(0o777)
+        # output.chmod(0o777)
 
     def run(self):
         streams = self.get_streams()
 
-        if (cnt := len(streams['video'])) > 1:
+        if (cnt := len(streams['video'])) != 1:
             logger.warning(f'Video streams error: except 1 stream, but get {cnt}: {streams['video']}')
-        elif cnt == 0:
-            logger.info('No video stream')
             with self.output().open('w') as outfile:
-                outfile.write('No video stream')
-            return
+                pass
+        return
 
         video_path = streams['video'][0].node.kwargs['filename']
         output = self.output_folder / video_path.relative_to(self.input_folder)
 
         self.mux_streams(streams, output=output)
+
         with self.output().open('w') as outfile:
-            pass
+            for path in self.pack:
+                print(Path(path).relative_to(self.input_folder), file=outfile)
 
 
 class MuxSeriesFolder(luigi.WrapperTask):
@@ -92,15 +105,16 @@ class MuxSeriesFolder(luigi.WrapperTask):
             pack = [p for p in path.parent.glob('**/*') if p.stem.startswith(path.stem)]
             packs[path.stem] = pack
 
-        return list(packs.values())
+        return packs
 
     def requires(self):
         packs = self.get_packs()
-        for pack in packs:
+        for stem, pack in packs.items():
             pack = [str(path.absolute()) for path in pack]
             yield MuxPack(
                 input_folder=self.input_folder,
                 output_folder=self.output_folder,
+                stem=stem,
                 pack=pack,
             )
 
@@ -110,11 +124,11 @@ class MuxTvFolder(luigi.WrapperTask):
     output_folder = luigi.PathParameter(exists=True)
 
     def requires(self):
-        series_folders = [path for path in self.input_folder.glob('*') if path.is_dir()]
-        for series_folder in series_folders:
+        item_folder = [path for path in self.input_folder.glob('*') if path.is_dir()]
+        for series_folder in item_folder:
             output_folder = self.output_folder / series_folder.relative_to(self.input_folder)
 
-            output_folder.mkdir(mode=0o777, exist_ok=True)
+            output_folder.mkdir(exist_ok=True)  # mode=0o777
 
             yield MuxSeriesFolder(
                 input_folder=series_folder,
@@ -122,18 +136,10 @@ class MuxTvFolder(luigi.WrapperTask):
             )
 
 
-if INPUT_FOLDER == DEFAULT_INPUT_FOLDER:
-    Path(INPUT_FOLDER).mkdir(parents=True, exist_ok=True)
-
-
-if OUTPUT_FOLDER == DEFAULT_OUTPUT_FOLDER:
-    Path(OUTPUT_FOLDER).mkdir(parents=True, exist_ok=True)
-
-
-Pool.add_task(
-    task=MuxTvFolder(
-        input_folder=Path(INPUT_FOLDER).absolute(),
-        output_folder=Path(OUTPUT_FOLDER).absolute(),
-    ),
-    cron='*/1 * * * *',
+task = MuxTvFolder(
+    input_folder=INPUT_FOLDER.absolute(),
+    output_folder=OUTPUT_FOLDER.absolute(),
 )
+
+
+add_luigi_task(schedule.every(1).minute, task)

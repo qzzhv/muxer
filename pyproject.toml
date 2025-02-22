@@ -10,13 +10,14 @@ python = "^3.12"
 ffmpeg-python = "^0.2.0"
 luigi = "^3.5.0"
 loguru = "^0.7.2"
-pycron = "^3.0.0"
+schedule = "^1.2.2"
 
 
 [tool.poetry.group.dev.dependencies]
 jupyter = "^1.0.0"
 black = "^24.2.0"
 isort = "^5.13.2"
+
 
 [build-system]
 requires = ["poetry-core"]
