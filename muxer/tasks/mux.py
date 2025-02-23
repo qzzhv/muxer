@@ -153,4 +153,4 @@ task = MuxTvFolder(
 )
 
 
-add_luigi_task(schedule.every(1).minutes, task)
+add_luigi_task(schedule.every(2).minutes, task)
