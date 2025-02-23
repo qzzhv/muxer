@@ -71,6 +71,7 @@ class MuxPack(luigi.Task):
             acodec='copy',
             vcodec='copy',
             max_interleave_delta=0,
+            avoid_negative_ts='make_zero',
         ).run(
             overwrite_output=True,
         )
