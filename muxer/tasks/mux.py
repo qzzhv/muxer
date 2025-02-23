@@ -1,21 +1,25 @@
 import hashlib
 import os
+import shutil
 from collections import defaultdict
 from itertools import chain
 from pathlib import Path
 
 import ffmpeg
 import luigi
-from loguru import logger
-from ..utils import add_luigi_task
 import schedule
+from loguru import logger
 
+from ..utils import add_luigi_task
 
+OUTPUT_TASK_SUFFIX = '.mux'
 DEFAULT_INPUT_FOLDER = 'input'
 DEFAULT_OUTPUT_FOLDER = 'output'
+
 INPUT_FOLDER = os.environ.get('INPUT_FOLDER')
 OUTPUT_FOLDER = os.environ.get('OUTPUT_FOLDER')
 INGORE_EXTENSIONS = os.environ.get('INGORE_EXTENSIONS', '!qB')
+REMOVE_ORPHANS = bool(int(os.environ.get('DELETE_ORPHANS', '1')))
 
 
 if not INPUT_FOLDER:
@@ -41,7 +45,7 @@ class MuxPack(luigi.Task):
     def output_log_path(self):
         data = '\n'.join(sorted(self.pack))
         h = hashlib.sha1(data.encode()).hexdigest()
-        suffix = f'.{h[:8]}.mux'
+        suffix = f'.{h[:8]}{OUTPUT_TASK_SUFFIX}'
         return self.output_folder / f'{self.stem[:255-len(suffix)]}{suffix}'
 
     def output(self):
@@ -130,20 +134,45 @@ class MuxSeriesFolder(luigi.WrapperTask):
             )
 
 
+class RemoveOrphans(luigi.Task):
+    input_folder = luigi.PathParameter(exists=True)
+    output_folder = luigi.PathParameter(exists=True)
+
+    def run(self):
+        pass
+        items = (path for path in self.output_folder.glob('*') if path.is_dir())
+        for item in items:
+            original_item = self.input_folder / item.relative_to(self.output_folder)
+            is_muxed_item = any(path.suffix == OUTPUT_TASK_SUFFIX for path in item.iterdir())
+            if not original_item.exists() and is_muxed_item:
+                logger.info(f'Remove orphan: {item} ...')
+                shutil.rmtree(item)
+        return True
+
+    def complete(self):
+        return False
+
+
 class MuxTvFolder(luigi.WrapperTask):
     input_folder = luigi.PathParameter(exists=True)
     output_folder = luigi.PathParameter(exists=True)
 
     def requires(self):
-        item_folder = [path for path in self.input_folder.glob('*') if path.is_dir()]
-        for series_folder in item_folder:
-            output_folder = self.output_folder / series_folder.relative_to(self.input_folder)
+        items = (path for path in self.input_folder.glob('*') if path.is_dir())
+        for item in items:
+            output_folder = self.output_folder / item.relative_to(self.input_folder)
 
             output_folder.mkdir(exist_ok=True)
 
             yield MuxSeriesFolder(
-                input_folder=series_folder,
+                input_folder=item,
                 output_folder=output_folder,
+            )
+
+        if REMOVE_ORPHANS:
+            yield RemoveOrphans(
+                input_folder=self.input_folder,
+                output_folder=self.output_folder,
             )
 
 
