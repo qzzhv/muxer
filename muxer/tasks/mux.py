@@ -50,7 +50,7 @@ class MuxPack(luigi.Task):
     def get_streams(self):
         input_streams = defaultdict(list)
 
-        for path in self.pack:
+        for path in sorted(self.pack):
             path = Path(path)
             try:
                 inp = ffmpeg.input(path)
@@ -75,7 +75,6 @@ class MuxPack(luigi.Task):
         ).run(
             overwrite_output=True,
         )
-        # output.chmod(0o777)
 
     def run(self):
         streams = self.get_streams()
@@ -105,8 +104,17 @@ class MuxSeriesFolder(luigi.WrapperTask):
         packs = defaultdict(list)
         ignored = set(f'.{ext.lower()}' for ext in INGORE_EXTENSIONS)
         for path in [p for p in self.input_folder.glob('**/*') if p.is_file() and p.suffix.lower() not in ignored]:
-            pack = [p for p in path.parent.glob('**/*') if p.stem.startswith(path.stem)]
-            packs[path.stem] = pack
+
+            has_video = False
+            try:
+                has_video = any(stream.get('codec_type') == 'video' for stream in ffmpeg.probe(path)['streams'])
+            except ffmpeg.Error as e:
+                if 'Invalid data found' not in e.stderr.decode():
+                    raise
+
+            if has_video:
+                pack = [p for p in path.parent.glob('**/*') if p.stem.startswith(path.stem)]
+                packs[path.stem] = pack
 
         return packs
 
@@ -131,7 +139,7 @@ class MuxTvFolder(luigi.WrapperTask):
         for series_folder in item_folder:
             output_folder = self.output_folder / series_folder.relative_to(self.input_folder)
 
-            output_folder.mkdir(exist_ok=True)  # mode=0o777
+            output_folder.mkdir(exist_ok=True)
 
             yield MuxSeriesFolder(
                 input_folder=series_folder,
@@ -145,4 +153,4 @@ task = MuxTvFolder(
 )
 
 
-add_luigi_task(schedule.every(1).minute, task)
+add_luigi_task(schedule.every(1).minutes, task)
