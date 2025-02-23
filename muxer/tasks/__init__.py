@@ -1,9 +1,8 @@
 import importlib
-from pathlib import Path
+import pkgutil
 
-scan_dir = Path(__file__).parent
+package_dir = __path__
+package_name = __name__
 
-for module in scan_dir.glob('*.py'):
-    if module.stem == '__init__':
-        continue
-    importlib.import_module(f'.{module.stem}', 'muxer.tasks')
+for _, module_name, _ in pkgutil.iter_modules(package_dir):
+    importlib.import_module(f'.{module_name}', package_name)
